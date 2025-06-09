@@ -120,6 +120,71 @@
                             text: "Regenerate"
                             icon: "refresh"
                             on_release: root.generate_image()
+                
+                # Batch Generation Section
+                MDCard:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(420)
+                    elevation: 5
+                    radius: [dp(15)]
+                    padding: dp(20)
+                    spacing: dp(15)
+                    
+                    MDLabel:
+                        text: "Batch Generation"
+                        font_style: "H6"
+                        size_hint_y: None
+                        height: dp(30)
+                    
+                    MDTextField:
+                        id: batch_prompt
+                        hint_text: "Enter prompt for batch generation..."
+                        mode: "rectangle"
+                        multiline: True
+                        max_height: dp(80)
+                        font_size: dp(14)
+                        helper_text: "This prompt will be used for all images with variations"
+                        helper_text_mode: "on_focus"
+                    
+                    MDBoxLayout:
+                        orientation: 'vertical'
+                        size_hint_y: None
+                        height: dp(60)
+                        spacing: dp(5)
+                        
+                        MDLabel:
+                            text: f"Number of images: {int(batch_slider.value)}"
+                            font_style: "Body2"
+                            size_hint_y: None
+                            height: dp(20)
+                        
+                        MDSlider:
+                            id: batch_slider
+                            min: 1
+                            max: 4
+                            value: 2
+                            step: 1
+                            hint: True
+                            show_off: False
+                    
+                    MDRaisedButton:
+                        text: "Generate Batch"
+                        icon: "image-multiple"
+                        pos_hint: {"center_x": 0.5}
+                        on_release: root.generate_batch()
+                    
+                    # Grid for batch images
+                    MDScrollView:
+                        size_hint_y: None
+                        height: dp(200)
+                        
+                        MDGridLayout:
+                            id: batch_grid
+                            cols: 2
+                            spacing: dp(10)
+                            adaptive_height: True
+                            padding: dp(5)
         
         # Bottom navigation
         MDBottomAppBar:

@@ -233,11 +233,25 @@ class MainScreen(Screen):
             self.show_api_key_dialog()
             return
         
+        # Disable button during generation
+        self.ids.generate_btn.disabled = True
+        
         # Clear previous batch
         self.ids.batch_grid.clear_widgets()
         
+        # Add progress label
+        from kivymd.uix.label import MDLabel
+        self.batch_progress_label = MDLabel(
+            text=f"Generating {count} images...",
+            font_style="Body2",
+            size_hint_y=None,
+            height=30,
+            pos_hint={"center_x": 0.5}
+        )
+        self.ids.batch_grid.add_widget(self.batch_progress_label)
+        
         # Start batch generation
-        Snackbar(text=f"Generating {count} images...").open()
+        Snackbar(text=f"Starting batch generation of {count} images...").open()
         
         threading.Thread(
             target=self._generate_batch_thread,
@@ -246,41 +260,103 @@ class MainScreen(Screen):
     
     def _generate_batch_thread(self, prompt, count):
         """Generate multiple images in background"""
+        successful_count = 0
+        failed_count = 0
+        
+        # Get size from settings
+        size = MDApp.get_running_app().settings_screen.get_image_size()
+        
+        # Remove progress label first
+        Clock.schedule_once(lambda dt: self.ids.batch_grid.remove_widget(self.batch_progress_label), 0)
+        
         for i in range(count):
             try:
-                # Add variation to prompt
-                varied_prompt = f"{prompt}, variation {i+1}"
+                # Update progress
+                Clock.schedule_once(
+                    lambda dt, idx=i+1, total=count: 
+                    Snackbar(text=f"Generating image {idx} of {total}...").open(),
+                    0
+                )
+                
+                # Add variation to prompt with more creative variations
+                variations = [
+                    ", artistic style",
+                    ", different perspective", 
+                    ", vibrant colors",
+                    ", dramatic lighting",
+                    ", unique composition",
+                    ", alternative view"
+                ]
+                variation_text = variations[i % len(variations)] if i < len(variations) else f", variation {i+1}"
+                varied_prompt = f"{prompt}{variation_text}"
                 
                 # Generate image
-                response = self.api_service.generate_image(varied_prompt)
+                response = self.api_service.generate_image(varied_prompt, size=size)
                 
-                if response and 'data' in response:
+                if response and 'data' in response and len(response['data']) > 0:
                     image_url = response['data'][0]['url']
                     image_data = self.image_processor.download_image(image_url)
                     
                     if image_data:
                         Clock.schedule_once(
-                            lambda dt, data=image_data, p=varied_prompt: 
-                            self._add_batch_image(data, p),
+                            lambda dt, data=image_data, p=varied_prompt, idx=i: 
+                            self._add_batch_image(data, p, idx),
                             0
                         )
+                        successful_count += 1
+                        
+                        # Save to history
+                        self.storage.save_to_history(varied_prompt, image_url)
+                    else:
+                        failed_count += 1
+                else:
+                    failed_count += 1
                         
             except Exception as e:
-                print(f"Batch generation error: {e}")
+                print(f"Batch generation error for image {i+1}: {e}")
+                failed_count += 1
                 continue
+        
+        # Show completion message
+        Clock.schedule_once(
+            lambda dt: self._complete_batch_generation(successful_count, failed_count, count),
+            0
+        )
     
-    def _add_batch_image(self, image_data, prompt):
+    def _complete_batch_generation(self, successful, failed, total):
+        """Show batch generation completion message"""
+        self.ids.generate_btn.disabled = False
+        
+        if successful == total:
+            Snackbar(text=f"All {total} images generated successfully!").open()
+        elif successful > 0:
+            Snackbar(text=f"Generated {successful} of {total} images. {failed} failed.").open()
+        else:
+            Snackbar(text="Failed to generate images. Please try again.").open()
+    
+    def _add_batch_image(self, image_data, prompt, index=0):
         """Add image to batch grid"""
         from kivymd.uix.card import MDCard
+        from kivymd.uix.boxlayout import MDBoxLayout
+        from kivymd.uix.label import MDLabel
+        from kivymd.uix.button import MDIconButton
         from kivy.uix.image import Image
         
         # Create card for image
         card = MDCard(
             orientation='vertical',
-            size_hint_y=None,
-            height=200,
+            size_hint=(None, None),
+            size=(150, 180),
             elevation=5,
-            radius=[15,]
+            radius=[15,],
+            md_bg_color=(0.98, 0.98, 0.98, 1)
+        )
+        
+        # Create vertical layout
+        layout = MDBoxLayout(
+            orientation='vertical',
+            spacing=5,
+            padding=5
         )
         
         # Create image widget
@@ -289,14 +365,61 @@ class MainScreen(Screen):
             img = Image(
                 texture=texture,
                 allow_stretch=True,
-                keep_ratio=True
+                keep_ratio=True,
+                size_hint_y=0.8
             )
-            card.add_widget(img)
+            layout.add_widget(img)
             
-            # Add tap to save
-            card.bind(on_release=lambda x: self._save_batch_image(image_data, prompt))
+            # Add action buttons
+            button_layout = MDBoxLayout(
+                orientation='horizontal',
+                size_hint_y=0.2,
+                spacing=5,
+                padding=[5, 0, 5, 0]
+            )
             
+            # Save button
+            save_btn = MDIconButton(
+                icon="content-save",
+                theme_icon_color="Custom",
+                icon_color=(0.2, 0.6, 0.2, 1),
+                icon_size="20sp",
+                on_release=lambda x: self._save_batch_image(image_data, prompt)
+            )
+            
+            # Share button
+            share_btn = MDIconButton(
+                icon="share-variant",
+                theme_icon_color="Custom",
+                icon_color=(0.2, 0.4, 0.8, 1),
+                icon_size="20sp",
+                on_release=lambda x: self._share_batch_image(image_data, prompt)
+            )
+            
+            # View button
+            view_btn = MDIconButton(
+                icon="eye",
+                theme_icon_color="Custom",
+                icon_color=(0.5, 0.5, 0.5, 1),
+                icon_size="20sp",
+                on_release=lambda x: self._view_batch_image(image_data, prompt)
+            )
+            
+            button_layout.add_widget(save_btn)
+            button_layout.add_widget(share_btn)
+            button_layout.add_widget(view_btn)
+            
+            layout.add_widget(button_layout)
+            card.add_widget(layout)
+            
+            # Add to grid with animation
+            card.opacity = 0
             self.ids.batch_grid.add_widget(card)
+            
+            # Fade in animation
+            from kivy.animation import Animation
+            anim = Animation(opacity=1, duration=0.3)
+            anim.start(card)
     
     def _save_batch_image(self, image_data, prompt):
         """Save batch image to gallery"""
@@ -304,3 +427,50 @@ class MainScreen(Screen):
         if filename:
             Snackbar(text="Image saved to gallery!").open()
             MDApp.get_running_app().gallery_screen.refresh_gallery()
+    
+    def _share_batch_image(self, image_data, prompt):
+        """Share batch image via Android share intent"""
+        # First save the image temporarily
+        filename = self.image_processor.save_to_gallery(
+            image_data,
+            "batch_share_temp"
+        )
+        if filename:
+            try:
+                from utils.android_utils import share_helper
+                success = share_helper.share_image(
+                    filename, 
+                    f"Check out this AI-generated image: {prompt}"
+                )
+                if success:
+                    Snackbar(text="Opening share dialog...").open()
+                else:
+                    Snackbar(text="Failed to share image").open()
+            except Exception as e:
+                Snackbar(text=f"Share error: {str(e)}").open()
+        else:
+            Snackbar(text="Failed to prepare image for sharing").open()
+    
+    def _view_batch_image(self, image_data, prompt):
+        """View batch image in full screen"""
+        # Import image viewer
+        try:
+            from utils.image_viewer import ImageViewer
+            
+            # Create temporary file for viewing
+            filename = self.image_processor.save_to_gallery(
+                image_data,
+                "batch_view_temp"
+            )
+            
+            if filename:
+                # Create and open image viewer
+                viewer = ImageViewer(
+                    source=filename,
+                    title=prompt[:50] + "..." if len(prompt) > 50 else prompt
+                )
+                viewer.open()
+            else:
+                Snackbar(text="Failed to open image viewer").open()
+        except Exception as e:
+            Snackbar(text=f"Viewer error: {str(e)}").open()
