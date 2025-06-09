@@ -1,0 +1,125 @@
+# History screen layout with Material Design
+<HistoryScreen>:
+    MDBoxLayout:
+        orientation: 'vertical'
+        
+        # Top App Bar
+        MDTopAppBar:
+            title: "Generation History"
+            elevation: 4
+            md_bg_color: app.theme_cls.primary_color
+            left_action_items: [["arrow-left", lambda x: app.switch_screen('main')]]
+            right_action_items: [["delete-clock", lambda x: root.clear_history()], ["refresh", lambda x: root.refresh_history()]]
+        
+        # Search bar
+        MDCard:
+            size_hint_y: None
+            height: dp(60)
+            elevation: 2
+            radius: [0]
+            
+            MDTextField:
+                id: search_field
+                hint_text: "Search prompts..."
+                icon_left: "magnify"
+                mode: "fill"
+                on_text: root.filter_history(self.text)
+        
+        # History list
+        MDScrollView:
+            MDList:
+                id: history_list
+                spacing: dp(5)
+                padding: dp(10)
+                
+        # Empty state
+        MDBoxLayout:
+            id: empty_state
+            orientation: 'vertical'
+            spacing: dp(20)
+            padding: dp(40)
+            opacity: 1 if not history_list.children else 0
+            
+            MDIcon:
+                icon: "history"
+                halign: "center"
+                font_size: dp(80)
+                theme_text_color: "Hint"
+                
+            MDLabel:
+                text: "No History Yet"
+                halign: "center"
+                font_style: "H6"
+                theme_text_color: "Hint"
+                
+            MDLabel:
+                text: "Your generated images will appear here"
+                halign: "center"
+                font_style: "Body2"
+                theme_text_color: "Hint"
+
+# History item template
+<HistoryItem@MDCard>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: dp(100)
+    elevation: 2
+    radius: [dp(10)]
+    padding: dp(15)
+    spacing: dp(15)
+    ripple_behavior: True
+    
+    # Thumbnail
+    MDCard:
+        size_hint: None, None
+        size: dp(70), dp(70)
+        radius: [dp(10)]
+        elevation: 0
+        
+        FitImage:
+            source: root.thumbnail_path if hasattr(root, 'thumbnail_path') else ''
+            radius: [dp(10)]
+    
+    # Text content
+    MDBoxLayout:
+        orientation: 'vertical'
+        spacing: dp(5)
+        
+        MDLabel:
+            id: prompt_text
+            text: root.prompt if hasattr(root, 'prompt') else ''
+            font_style: "Body1"
+            theme_text_color: "Primary"
+            shorten: True
+            shorten_from: "right"
+            max_lines: 2
+            
+        MDLabel:
+            id: timestamp_text
+            text: root.timestamp if hasattr(root, 'timestamp') else ''
+            font_style: "Caption"
+            theme_text_color: "Secondary"
+            
+        MDBoxLayout:
+            size_hint_y: None
+            height: dp(20)
+            spacing: dp(5)
+            
+            MDChip:
+                text: root.size if hasattr(root, 'size') else '512x512'
+                icon: "image-size-select-large"
+                size_hint_x: None
+                width: dp(100)
+                
+            MDChip:
+                text: root.model if hasattr(root, 'model') else 'dall-e-2'
+                icon: "robot"
+                size_hint_x: None
+                width: dp(100)
+    
+    # Action button
+    MDIconButton:
+        icon: "refresh"
+        theme_icon_color: "Custom"
+        icon_color: app.theme_cls.primary_color
+        on_release: root.regenerate() if hasattr(root, 'regenerate') else None

@@ -5,6 +5,7 @@ Main screen for DALL-E image generation app - Full Featured Version
 from kivy.uix.screenmanager import Screen
 from kivy.clock import Clock
 from kivy.utils import platform
+from kivy.lang import Builder
 from kivymd.uix.snackbar import Snackbar
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
@@ -18,6 +19,9 @@ from pathlib import Path
 from services.dalle_api import DalleAPIService, DalleAPIError
 from utils.storage import SecureStorage
 from utils.image_utils import ImageProcessor
+
+# Load KV file
+Builder.load_file(os.path.join(os.path.dirname(__file__), '../ui/main_screen.kv'))
 
 class MainScreen(Screen):
     def __init__(self, **kwargs):
@@ -189,6 +193,33 @@ class MainScreen(Screen):
             else:
                 Snackbar(text="Failed to save image").open()
     
+    def share_current_image(self):
+        """Share current image via Android share intent"""
+        if self.current_image_data:
+            # First save the image temporarily
+            filename = self.image_processor.save_to_gallery(
+                self.current_image_data,
+                "share_temp"
+            )
+            if filename:
+                # Import share helper
+                try:
+                    from utils.android_utils import share_helper
+                    success = share_helper.share_image(
+                        filename, 
+                        f"Check out this AI-generated image: {self.ids.prompt_input.text}"
+                    )
+                    if success:
+                        Snackbar(text="Opening share dialog...").open()
+                    else:
+                        Snackbar(text="Failed to share image").open()
+                except Exception as e:
+                    Snackbar(text=f"Share error: {str(e)}").open()
+            else:
+                Snackbar(text="Failed to prepare image for sharing").open()
+        else:
+            Snackbar(text="No image to share").open()
+    
     def generate_batch(self):
         """Generate multiple images"""
         prompt = self.ids.batch_prompt.text.strip()
@@ -273,163 +304,3 @@ class MainScreen(Screen):
         if filename:
             Snackbar(text="Image saved to gallery!").open()
             MDApp.get_running_app().gallery_screen.refresh_gallery()
-
-
-class GalleryScreen(Screen):
-    """Gallery screen to view saved images"""
-    
-    def on_enter(self):
-        """Called when screen is entered"""
-        self.refresh_gallery()
-    
-    def refresh_gallery(self):
-        """Refresh gallery with saved images"""
-        self.ids.gallery_grid.clear_widgets()
-        
-        # Get gallery path
-        gallery_path = ImageProcessor().get_gallery_path()
-        
-        # Load all images
-        for image_file in sorted(gallery_path.glob("*.png"), reverse=True):
-            self._add_gallery_image(image_file)
-    
-    def _add_gallery_image(self, image_path):
-        """Add image to gallery grid"""
-        from kivymd.uix.card import MDCard
-        from kivy.uix.image import Image
-        
-        card = MDCard(
-            orientation='vertical',
-            size_hint_y=None,
-            height=200,
-            elevation=5,
-            radius=[15,]
-        )
-        
-        img = Image(
-            source=str(image_path),
-            allow_stretch=True,
-            keep_ratio=True
-        )
-        card.add_widget(img)
-        
-        # Add tap to view full
-        card.bind(on_release=lambda x: self._view_full_image(image_path))
-        
-        self.ids.gallery_grid.add_widget(card)
-    
-    def _view_full_image(self, image_path):
-        """View full size image"""
-        # TODO: Implement full image viewer
-        Snackbar(text=f"Image: {image_path.name}").open()
-    
-    def clear_gallery(self):
-        """Clear all gallery images"""
-        # TODO: Add confirmation dialog
-        pass
-
-
-class HistoryScreen(Screen):
-    """History screen to view generation history"""
-    
-    def on_enter(self):
-        """Called when screen is entered"""
-        self.refresh_history()
-    
-    def refresh_history(self):
-        """Refresh history list"""
-        self.ids.history_list.clear_widgets()
-        
-        # Load history
-        history = SecureStorage().get_history()
-        
-        for item in history:
-            self._add_history_item(item)
-    
-    def _add_history_item(self, item):
-        """Add item to history list"""
-        from kivymd.uix.list import TwoLineListItem
-        
-        list_item = TwoLineListItem(
-            text=item.get('prompt', 'No prompt'),
-            secondary_text=item.get('timestamp', 'Unknown time')
-        )
-        
-        # Add tap to regenerate
-        list_item.bind(on_release=lambda x: self._regenerate_from_history(item))
-        
-        self.ids.history_list.add_widget(list_item)
-    
-    def _regenerate_from_history(self, item):
-        """Regenerate image from history item"""
-        app = MDApp.get_running_app()
-        app.switch_screen('main')
-        app.main_screen.ids.prompt_input.text = item.get('prompt', '')
-        Snackbar(text="Prompt loaded - tap Generate to create new image").open()
-    
-    def clear_history(self):
-        """Clear all history"""
-        # TODO: Add confirmation dialog
-        pass
-
-
-class SettingsScreen(Screen):
-    """Settings screen"""
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.storage = SecureStorage()
-        self.size_options = ['256x256', '512x512', '1024x1024']
-        self.current_size = '1024x1024'
-    
-    def on_enter(self):
-        """Called when screen is entered"""
-        # Load current API key (masked)
-        api_key = self.storage.get_api_key()
-        if api_key:
-            self.ids.api_key_input.text = '*' * 20
-    
-    def save_api_key(self):
-        """Save new API key"""
-        api_key = self.ids.api_key_input.text.strip()
-        
-        # Only save if it's not the masked version
-        if api_key and not api_key.startswith('*'):
-            self.storage.save_api_key(api_key)
-            MDApp.get_running_app().main_screen.api_service.set_api_key(api_key)
-            Snackbar(text="API Key saved successfully!").open()
-            self.ids.api_key_input.text = '*' * 20
-    
-    def show_size_menu(self):
-        """Show image size selection menu"""
-        from kivymd.uix.menu import MDDropdownMenu
-        
-        menu_items = [
-            {
-                "text": size,
-                "on_release": lambda x=size: self.set_image_size(x),
-            }
-            for size in self.size_options
-        ]
-        
-        self.menu = MDDropdownMenu(
-            caller=self.ids.size_dropdown,
-            items=menu_items,
-            width_mult=4,
-        )
-        self.menu.open()
-    
-    def set_image_size(self, size):
-        """Set selected image size"""
-        self.current_size = size
-        self.ids.size_dropdown.text = size
-        self.menu.dismiss()
-        Snackbar(text=f"Default size set to {size}").open()
-    
-    def get_image_size(self):
-        """Get current image size setting"""
-        return self.current_size
-    
-    def is_auto_save_enabled(self):
-        """Check if auto-save is enabled"""
-        return self.ids.auto_save_switch.active

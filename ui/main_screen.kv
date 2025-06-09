@@ -1,0 +1,132 @@
+# Main screen layout with Material Design
+<MainScreen>:
+    MDBoxLayout:
+        orientation: 'vertical'
+        
+        # Top App Bar
+        MDTopAppBar:
+            title: "DALL-E Image Generator"
+            elevation: 4
+            md_bg_color: app.theme_cls.primary_color
+            left_action_items: [["menu", lambda x: app.toggle_nav_drawer()]]
+            right_action_items: [["history", lambda x: app.switch_screen('history')], ["image-multiple", lambda x: app.switch_screen('gallery')]]
+        
+        # Main content scroll view
+        MDScrollView:
+            MDBoxLayout:
+                orientation: 'vertical'
+                spacing: dp(20)
+                padding: dp(20)
+                adaptive_height: True
+                
+                # Welcome card
+                MDCard:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(180)
+                    elevation: 8
+                    radius: [dp(20)]
+                    md_bg_color: app.theme_cls.primary_light
+                    
+                    MDBoxLayout:
+                        orientation: 'vertical'
+                        padding: dp(20)
+                        spacing: dp(10)
+                        
+                        MDLabel:
+                            text: "Create Amazing AI Art"
+                            font_style: "H5"
+                            theme_text_color: "Custom"
+                            text_color: 1, 1, 1, 1
+                            
+                        MDLabel:
+                            text: "Describe your vision and let AI bring it to life"
+                            font_style: "Body1"
+                            theme_text_color: "Custom"
+                            text_color: 1, 1, 1, 0.8
+                
+                # Prompt input card
+                MDCard:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(200)
+                    elevation: 3
+                    radius: [dp(15)]
+                    padding: dp(20)
+                    
+                    MDTextField:
+                        id: prompt_input
+                        hint_text: "Enter your creative prompt..."
+                        mode: "rectangle"
+                        multiline: True
+                        max_height: dp(120)
+                        font_size: dp(16)
+                        helper_text: "Be descriptive! E.g., 'A majestic lion in a neon-lit cyberpunk city'"
+                        helper_text_mode: "on_focus"
+                        icon_right: "lightbulb-outline"
+                
+                # Generate button
+                MDFloatingActionButton:
+                    id: generate_btn
+                    icon: "creation"
+                    elevation: 8
+                    md_bg_color: app.theme_cls.accent_color
+                    pos_hint: {"center_x": 0.5}
+                    on_release: root.generate_image()
+                
+                # Loading spinner (hidden by default)
+                MDSpinner:
+                    id: spinner
+                    size_hint: None, None
+                    size: dp(48), dp(48)
+                    pos_hint: {"center_x": 0.5}
+                    active: False
+                    opacity: 0 if not self.active else 1
+                
+                # Generated image display
+                MDCard:
+                    id: image_card
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(400)
+                    elevation: 5
+                    radius: [dp(15)]
+                    opacity: 0 if not generated_image.texture else 1
+                    
+                    Image:
+                        id: generated_image
+                        allow_stretch: True
+                        keep_ratio: True
+                        opacity: 0
+                    
+                    # Action buttons for generated image
+                    MDBoxLayout:
+                        size_hint_y: None
+                        height: dp(60)
+                        padding: dp(10)
+                        spacing: dp(10)
+                        
+                        MDRoundFlatIconButton:
+                            text: "Save"
+                            icon: "content-save"
+                            on_release: root.save_current_image()
+                            
+                        MDRoundFlatIconButton:
+                            text: "Share"
+                            icon: "share-variant"
+                            on_release: root.share_current_image()
+                            
+                        MDRoundFlatIconButton:
+                            text: "Regenerate"
+                            icon: "refresh"
+                            on_release: root.generate_image()
+        
+        # Bottom navigation
+        MDBottomAppBar:
+            MDTopAppBar:
+                title: ""
+                icon: "settings"
+                type: "bottom"
+                left_action_items: [["home", lambda x: app.switch_screen('main')]]
+                right_action_items: [["cog", lambda x: app.switch_screen('settings')]]
+                mode: "center"

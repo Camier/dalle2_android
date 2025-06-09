@@ -1,0 +1,191 @@
+# Settings screen layout with Material Design
+<SettingsScreen>:
+    MDBoxLayout:
+        orientation: 'vertical'
+        
+        # Top App Bar
+        MDTopAppBar:
+            title: "Settings"
+            elevation: 4
+            md_bg_color: app.theme_cls.primary_color
+            left_action_items: [["arrow-left", lambda x: app.switch_screen('main')]]
+        
+        # Settings content
+        MDScrollView:
+            MDBoxLayout:
+                orientation: 'vertical'
+                spacing: dp(20)
+                padding: dp(20)
+                adaptive_height: True
+                
+                # API Key section
+                MDCard:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(180)
+                    elevation: 3
+                    radius: [dp(15)]
+                    padding: dp(20)
+                    
+                    MDLabel:
+                        text: "OpenAI API Key"
+                        font_style: "H6"
+                        theme_text_color: "Primary"
+                        
+                    MDTextField:
+                        id: api_key_input
+                        hint_text: "Enter your API key"
+                        password: True
+                        mode: "rectangle"
+                        helper_text: "Get your key from platform.openai.com"
+                        helper_text_mode: "on_focus"
+                        icon_right: "key-variant"
+                        
+                    MDRaisedButton:
+                        text: "Save API Key"
+                        pos_hint: {"center_x": 0.5}
+                        on_release: root.save_api_key()
+                
+                # Image Settings section
+                MDCard:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(200)
+                    elevation: 3
+                    radius: [dp(15)]
+                    padding: dp(20)
+                    
+                    MDLabel:
+                        text: "Image Settings"
+                        font_style: "H6"
+                        theme_text_color: "Primary"
+                        
+                    # Image size selector
+                    MDBoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: dp(60)
+                        spacing: dp(10)
+                        
+                        MDIcon:
+                            icon: "image-size-select-large"
+                            size_hint_x: None
+                            width: dp(40)
+                            theme_text_color: "Secondary"
+                            
+                        MDLabel:
+                            text: "Default Image Size"
+                            size_hint_x: None
+                            width: dp(150)
+                            
+                        MDRectangleFlatButton:
+                            id: size_dropdown
+                            text: "512x512"
+                            on_release: root.show_size_menu()
+                    
+                    # Auto-save toggle
+                    MDBoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: dp(60)
+                        spacing: dp(10)
+                        
+                        MDIcon:
+                            icon: "content-save-all"
+                            size_hint_x: None
+                            width: dp(40)
+                            theme_text_color: "Secondary"
+                            
+                        MDLabel:
+                            text: "Auto-save to Gallery"
+                            
+                        MDSwitch:
+                            id: auto_save_switch
+                            active: True
+                            pos_hint: {"center_y": 0.5}
+                
+                # Theme section
+                MDCard:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(180)
+                    elevation: 3
+                    radius: [dp(15)]
+                    padding: dp(20)
+                    
+                    MDLabel:
+                        text: "Appearance"
+                        font_style: "H6"
+                        theme_text_color: "Primary"
+                        
+                    # Theme toggle
+                    MDBoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: dp(60)
+                        spacing: dp(10)
+                        
+                        MDIcon:
+                            icon: "theme-light-dark"
+                            size_hint_x: None
+                            width: dp(40)
+                            theme_text_color: "Secondary"
+                            
+                        MDLabel:
+                            text: "Dark Theme"
+                            
+                        MDSwitch:
+                            id: theme_switch
+                            active: False
+                            pos_hint: {"center_y": 0.5}
+                            on_active: app.toggle_theme()
+                    
+                    # Primary color selector
+                    MDBoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: dp(60)
+                        spacing: dp(10)
+                        
+                        MDIcon:
+                            icon: "palette"
+                            size_hint_x: None
+                            width: dp(40)
+                            theme_text_color: "Secondary"
+                            
+                        MDLabel:
+                            text: "Primary Color"
+                            size_hint_x: None
+                            width: dp(150)
+                            
+                        MDRectangleFlatButton:
+                            text: "Blue"
+                            on_release: root.show_color_menu()
+                
+                # About section
+                MDCard:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(150)
+                    elevation: 3
+                    radius: [dp(15)]
+                    padding: dp(20)
+                    
+                    MDLabel:
+                        text: "About"
+                        font_style: "H6"
+                        theme_text_color: "Primary"
+                        
+                    MDLabel:
+                        text: "DALL-E Image Generator"
+                        font_style: "Body1"
+                        
+                    MDLabel:
+                        text: "Version 1.0.0"
+                        font_style: "Caption"
+                        theme_text_color: "Secondary"
+                        
+                    MDLabel:
+                        text: "Powered by OpenAI DALL-E 2"
+                        font_style: "Caption"
+                        theme_text_color: "Secondary"

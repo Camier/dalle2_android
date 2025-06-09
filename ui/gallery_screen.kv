@@ -1,0 +1,111 @@
+# Gallery screen layout with Material Design
+<GalleryScreen>:
+    MDBoxLayout:
+        orientation: 'vertical'
+        
+        # Top App Bar
+        MDTopAppBar:
+            title: "Gallery"
+            elevation: 4
+            md_bg_color: app.theme_cls.primary_color
+            left_action_items: [["arrow-left", lambda x: app.switch_screen('main')]]
+            right_action_items: [["delete-sweep", lambda x: root.clear_gallery()], ["refresh", lambda x: root.refresh_gallery()]]
+        
+        # Gallery content
+        MDScrollView:
+            MDBoxLayout:
+                orientation: 'vertical'
+                spacing: dp(10)
+                padding: dp(10)
+                adaptive_height: True
+                
+                # Gallery info card
+                MDCard:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(80)
+                    elevation: 2
+                    radius: [dp(10)]
+                    padding: dp(15)
+                    md_bg_color: app.theme_cls.primary_light
+                    
+                    MDLabel:
+                        text: "Your AI Creations"
+                        font_style: "H6"
+                        theme_text_color: "Custom"
+                        text_color: 1, 1, 1, 1
+                        
+                    MDLabel:
+                        id: gallery_count
+                        text: "0 images"
+                        font_style: "Caption"
+                        theme_text_color: "Custom"
+                        text_color: 1, 1, 1, 0.8
+                
+                # Gallery grid
+                MDGridLayout:
+                    id: gallery_grid
+                    cols: 2
+                    spacing: dp(10)
+                    adaptive_height: True
+                    
+                # Empty state
+                MDBoxLayout:
+                    id: empty_state
+                    orientation: 'vertical'
+                    spacing: dp(20)
+                    padding: dp(40)
+                    opacity: 1 if not gallery_grid.children else 0
+                    
+                    MDIcon:
+                        icon: "image-off"
+                        halign: "center"
+                        font_size: dp(80)
+                        theme_text_color: "Hint"
+                        
+                    MDLabel:
+                        text: "No Images Yet"
+                        halign: "center"
+                        font_style: "H6"
+                        theme_text_color: "Hint"
+                        
+                    MDLabel:
+                        text: "Generate your first image to see it here"
+                        halign: "center"
+                        font_style: "Body2"
+                        theme_text_color: "Hint"
+                        
+                    MDRaisedButton:
+                        text: "Create Image"
+                        pos_hint: {"center_x": 0.5}
+                        on_release: app.switch_screen('main')
+
+# Gallery item template
+<GalleryItem@MDCard>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: dp(200)
+    elevation: 5
+    radius: [dp(15)]
+    ripple_behavior: True
+    
+    FitImage:
+        source: root.image_path if hasattr(root, 'image_path') else ''
+        radius: [dp(15), dp(15), 0, 0]
+    
+    MDBoxLayout:
+        size_hint_y: None
+        height: dp(40)
+        padding: dp(5)
+        
+        MDIconButton:
+            icon: "share-variant"
+            theme_icon_color: "Custom"
+            icon_color: app.theme_cls.primary_color
+            on_release: root.share_image() if hasattr(root, 'share_image') else None
+            
+        MDIconButton:
+            icon: "delete"
+            theme_icon_color: "Custom"
+            icon_color: app.theme_cls.error_color
+            on_release: root.delete_image() if hasattr(root, 'delete_image') else None
