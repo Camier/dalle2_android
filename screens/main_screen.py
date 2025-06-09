@@ -1,248 +1,435 @@
 """
-Main screen for DALL-E image generation app
+Main screen for DALL-E image generation app - Full Featured Version
 """
 
 from kivy.uix.screenmanager import Screen
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.image import Image
-from kivy.uix.label import Label
-from kivy.properties import ObjectProperty, StringProperty
 from kivy.clock import Clock
-from kivy.graphics.texture import Texture
-from kivymd.uix.textfield import MDTextField
-from kivymd.uix.button import MDRaisedButton, MDFlatButton
-from kivymd.uix.dialog import MDDialog
-from kivymd.uix.spinner import MDSpinner
+from kivy.utils import platform
 from kivymd.uix.snackbar import Snackbar
-from kivymd.uix.card import MDCard
+from kivymd.uix.dialog import MDDialog
+from kivymd.uix.button import MDFlatButton
 from kivymd.app import MDApp
 
 import threading
-from io import BytesIO
-from PIL import Image as PILImage
+import os
+from datetime import datetime
+from pathlib import Path
 
 from services.dalle_api import DalleAPIService, DalleAPIError
 from utils.storage import SecureStorage
-from utils.image_utils import save_image_to_gallery
+from utils.image_utils import ImageProcessor
 
 class MainScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.api_service = DalleAPIService()
         self.storage = SecureStorage()
-        self.dalle_service = DalleAPIService()
-        self.current_image = None
-        self.api_key_dialog = None
+        self.image_processor = ImageProcessor()
+        self.current_image_url = None
+        self.current_image_data = None
         
-        # Build UI
-        self.build_ui()
-        
-        # Check for saved API key
-        Clock.schedule_once(self.check_api_key, 0.5)
+        # Load API key on startup
+        Clock.schedule_once(self.load_api_key, 0.5)
     
-    def build_ui(self):
-        # Main layout
-        main_layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
+    def load_api_key(self, dt):
+        """Load saved API key"""
+        api_key = self.storage.get_api_key()
+        if api_key:
+            self.api_service.set_api_key(api_key)
+        else:
+            self.show_api_key_dialog()
+    
+    def show_api_key_dialog(self):
+        """Show dialog to enter API key"""
+        from kivymd.uix.textfield import MDTextField
         
-        # Header
-        header = Label(
-            text='DALL-E Image Generator',
+        # Create text field for API key
+        self.api_key_field = MDTextField(
+            hint_text="Enter your OpenAI API Key",
+            password=True,
+            helper_text="Get your API key from platform.openai.com",
+            helper_text_mode="on_focus"
+        )
+        
+        self.dialog = MDDialog(
+            title="API Key Required",
+            type="custom",
+            content_cls=self.api_key_field,
+            buttons=[
+                MDFlatButton(
+                    text="CANCEL",
+                    on_release=lambda x: self.dialog.dismiss()
+                ),
+                MDFlatButton(
+                    text="SAVE",
+                    on_release=self.save_api_key_from_dialog
+                ),
+            ],
+        )
+        self.dialog.open()
+    
+    def save_api_key_from_dialog(self, instance):
+        """Save API key from dialog"""
+        api_key = self.api_key_field.text.strip()
+        if api_key:
+            self.storage.save_api_key(api_key)
+            self.api_service.set_api_key(api_key)
+            self.dialog.dismiss()
+            Snackbar(text="API Key saved successfully!").open()
+        else:
+            Snackbar(text="Please enter a valid API key").open()
+    
+    def generate_image(self):
+        """Generate image from prompt"""
+        prompt = self.ids.prompt_input.text.strip()
+        
+        if not prompt:
+            Snackbar(text="Please enter a prompt").open()
+            return
+        
+        if not self.api_service.api_key:
+            self.show_api_key_dialog()
+            return
+        
+        # Show loading spinner
+        self.ids.spinner.active = True
+        self.ids.generated_image.opacity = 0
+        
+        # Generate in background thread
+        threading.Thread(
+            target=self._generate_image_thread,
+            args=(prompt,)
+        ).start()
+    
+    def _generate_image_thread(self, prompt):
+        """Background thread for image generation"""
+        try:
+            # Get size from settings or use default
+            size = MDApp.get_running_app().settings_screen.get_image_size()
+            
+            # Generate image
+            response = self.api_service.generate_image(prompt, size=size)
+            
+            if response and 'data' in response and len(response['data']) > 0:
+                image_url = response['data'][0]['url']
+                
+                # Download image
+                image_data = self.image_processor.download_image(image_url)
+                
+                if image_data:
+                    # Update UI on main thread
+                    Clock.schedule_once(
+                        lambda dt: self._display_image(image_data, prompt),
+                        0
+                    )
+                    
+                    # Save to history
+                    self.storage.save_to_history(prompt, image_url)
+                else:
+                    Clock.schedule_once(
+                        lambda dt: self._show_error("Failed to download image"),
+                        0
+                    )
+            else:
+                Clock.schedule_once(
+                    lambda dt: self._show_error("No image generated"),
+                    0
+                )
+                
+        except DalleAPIError as e:
+            Clock.schedule_once(
+                lambda dt: self._show_error(f"API Error: {str(e)}"),
+                0
+            )
+        except Exception as e:
+            Clock.schedule_once(
+                lambda dt: self._show_error(f"Error: {str(e)}"),
+                0
+            )
+    
+    def _display_image(self, image_data, prompt):
+        """Display generated image"""
+        # Hide spinner
+        self.ids.spinner.active = False
+        
+        # Display image
+        texture = self.image_processor.create_texture_from_data(image_data)
+        if texture:
+            self.ids.generated_image.texture = texture
+            self.ids.generated_image.opacity = 1
+            
+            # Store current image
+            self.current_image_data = image_data
+            
+            # Auto-save if enabled
+            app = MDApp.get_running_app()
+            if app.settings_screen.is_auto_save_enabled():
+                self.save_current_image(prompt)
+            
+            Snackbar(text="Image generated successfully!").open()
+        else:
+            self._show_error("Failed to display image")
+    
+    def _show_error(self, message):
+        """Show error message"""
+        self.ids.spinner.active = False
+        Snackbar(text=message).open()
+    
+    def save_current_image(self, prompt=None):
+        """Save current image to gallery"""
+        if self.current_image_data:
+            filename = self.image_processor.save_to_gallery(
+                self.current_image_data,
+                prompt or "dalle_image"
+            )
+            if filename:
+                Snackbar(text=f"Image saved to gallery!").open()
+                # Refresh gallery
+                MDApp.get_running_app().gallery_screen.refresh_gallery()
+            else:
+                Snackbar(text="Failed to save image").open()
+    
+    def generate_batch(self):
+        """Generate multiple images"""
+        prompt = self.ids.batch_prompt.text.strip()
+        count = int(self.ids.batch_slider.value)
+        
+        if not prompt:
+            Snackbar(text="Please enter a prompt").open()
+            return
+        
+        if not self.api_service.api_key:
+            self.show_api_key_dialog()
+            return
+        
+        # Clear previous batch
+        self.ids.batch_grid.clear_widgets()
+        
+        # Start batch generation
+        Snackbar(text=f"Generating {count} images...").open()
+        
+        threading.Thread(
+            target=self._generate_batch_thread,
+            args=(prompt, count)
+        ).start()
+    
+    def _generate_batch_thread(self, prompt, count):
+        """Generate multiple images in background"""
+        for i in range(count):
+            try:
+                # Add variation to prompt
+                varied_prompt = f"{prompt}, variation {i+1}"
+                
+                # Generate image
+                response = self.api_service.generate_image(varied_prompt)
+                
+                if response and 'data' in response:
+                    image_url = response['data'][0]['url']
+                    image_data = self.image_processor.download_image(image_url)
+                    
+                    if image_data:
+                        Clock.schedule_once(
+                            lambda dt, data=image_data, p=varied_prompt: 
+                            self._add_batch_image(data, p),
+                            0
+                        )
+                        
+            except Exception as e:
+                print(f"Batch generation error: {e}")
+                continue
+    
+    def _add_batch_image(self, image_data, prompt):
+        """Add image to batch grid"""
+        from kivymd.uix.card import MDCard
+        from kivy.uix.image import Image
+        
+        # Create card for image
+        card = MDCard(
+            orientation='vertical',
             size_hint_y=None,
-            height=50,
-            font_size='24sp',
-            bold=True
-        )
-        main_layout.add_widget(header)
-        
-        # Prompt input
-        self.prompt_input = MDTextField(
-            hint_text='Describe your image...',
-            mode='rectangle',
-            size_hint_y=None,
-            height=100,
-            multiline=True,
-            max_text_length=1000
-        )
-        main_layout.add_widget(self.prompt_input)
-        
-        # Generate button
-        self.generate_button = MDRaisedButton(
-            text='Generate Image',
-            size_hint=(1, None),
-            height=50,
-            md_bg_color=(0.2, 0.6, 1, 1),
-            on_release=self.generate_image
-        )
-        main_layout.add_widget(self.generate_button)
-        
-        # Image display card
-        self.image_card = MDCard(
-            size_hint=(1, 1),
+            height=200,
             elevation=5,
-            padding=10
+            radius=[15,]
         )
         
-        # Image display
-        self.image_display = Image(
-            source='',
+        # Create image widget
+        texture = self.image_processor.create_texture_from_data(image_data)
+        if texture:
+            img = Image(
+                texture=texture,
+                allow_stretch=True,
+                keep_ratio=True
+            )
+            card.add_widget(img)
+            
+            # Add tap to save
+            card.bind(on_release=lambda x: self._save_batch_image(image_data, prompt))
+            
+            self.ids.batch_grid.add_widget(card)
+    
+    def _save_batch_image(self, image_data, prompt):
+        """Save batch image to gallery"""
+        filename = self.image_processor.save_to_gallery(image_data, prompt)
+        if filename:
+            Snackbar(text="Image saved to gallery!").open()
+            MDApp.get_running_app().gallery_screen.refresh_gallery()
+
+
+class GalleryScreen(Screen):
+    """Gallery screen to view saved images"""
+    
+    def on_enter(self):
+        """Called when screen is entered"""
+        self.refresh_gallery()
+    
+    def refresh_gallery(self):
+        """Refresh gallery with saved images"""
+        self.ids.gallery_grid.clear_widgets()
+        
+        # Get gallery path
+        gallery_path = ImageProcessor().get_gallery_path()
+        
+        # Load all images
+        for image_file in sorted(gallery_path.glob("*.png"), reverse=True):
+            self._add_gallery_image(image_file)
+    
+    def _add_gallery_image(self, image_path):
+        """Add image to gallery grid"""
+        from kivymd.uix.card import MDCard
+        from kivy.uix.image import Image
+        
+        card = MDCard(
+            orientation='vertical',
+            size_hint_y=None,
+            height=200,
+            elevation=5,
+            radius=[15,]
+        )
+        
+        img = Image(
+            source=str(image_path),
             allow_stretch=True,
             keep_ratio=True
         )
-        self.image_card.add_widget(self.image_display)
+        card.add_widget(img)
         
-        # Loading spinner (hidden by default)
-        self.loading_spinner = MDSpinner(
-            size_hint=(None, None),
-            size=(48, 48),
-            pos_hint={'center_x': .5, 'center_y': .5},
-            active=False
-        )
-        self.image_card.add_widget(self.loading_spinner)
+        # Add tap to view full
+        card.bind(on_release=lambda x: self._view_full_image(image_path))
         
-        main_layout.add_widget(self.image_card)
-        
-        # Save button (hidden by default)
-        self.save_button = MDRaisedButton(
-            text='Save to Gallery',
-            size_hint=(1, None),
-            height=50,
-            md_bg_color=(0.2, 0.8, 0.2, 1),
-            on_release=self.save_image,
-            disabled=True
-        )
-        main_layout.add_widget(self.save_button)
-        
-        # Settings button
-        settings_button = MDFlatButton(
-            text='API Settings',
-            size_hint=(1, None),
-            height=40,
-            on_release=self.show_api_key_dialog
-        )
-        main_layout.add_widget(settings_button)
-        
-        self.add_widget(main_layout)
+        self.ids.gallery_grid.add_widget(card)
     
-    def check_api_key(self, dt):
+    def _view_full_image(self, image_path):
+        """View full size image"""
+        # TODO: Implement full image viewer
+        Snackbar(text=f"Image: {image_path.name}").open()
+    
+    def clear_gallery(self):
+        """Clear all gallery images"""
+        # TODO: Add confirmation dialog
+        pass
+
+
+class HistoryScreen(Screen):
+    """History screen to view generation history"""
+    
+    def on_enter(self):
+        """Called when screen is entered"""
+        self.refresh_history()
+    
+    def refresh_history(self):
+        """Refresh history list"""
+        self.ids.history_list.clear_widgets()
+        
+        # Load history
+        history = SecureStorage().get_history()
+        
+        for item in history:
+            self._add_history_item(item)
+    
+    def _add_history_item(self, item):
+        """Add item to history list"""
+        from kivymd.uix.list import TwoLineListItem
+        
+        list_item = TwoLineListItem(
+            text=item.get('prompt', 'No prompt'),
+            secondary_text=item.get('timestamp', 'Unknown time')
+        )
+        
+        # Add tap to regenerate
+        list_item.bind(on_release=lambda x: self._regenerate_from_history(item))
+        
+        self.ids.history_list.add_widget(list_item)
+    
+    def _regenerate_from_history(self, item):
+        """Regenerate image from history item"""
+        app = MDApp.get_running_app()
+        app.switch_screen('main')
+        app.main_screen.ids.prompt_input.text = item.get('prompt', '')
+        Snackbar(text="Prompt loaded - tap Generate to create new image").open()
+    
+    def clear_history(self):
+        """Clear all history"""
+        # TODO: Add confirmation dialog
+        pass
+
+
+class SettingsScreen(Screen):
+    """Settings screen"""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.storage = SecureStorage()
+        self.size_options = ['256x256', '512x512', '1024x1024']
+        self.current_size = '1024x1024'
+    
+    def on_enter(self):
+        """Called when screen is entered"""
+        # Load current API key (masked)
         api_key = self.storage.get_api_key()
         if api_key:
-            self.dalle_service.set_api_key(api_key)
-        else:
-            self.show_api_key_dialog(None)
+            self.ids.api_key_input.text = '*' * 20
     
-    def show_api_key_dialog(self, instance):
-        if not self.api_key_dialog:
-            self.api_key_input = MDTextField(
-                hint_text='Enter your OpenAI API key',
-                mode='rectangle',
-                password=True
-            )
-            
-            self.api_key_dialog = MDDialog(
-                title='API Key Setup',
-                text='Enter your OpenAI API key to use DALL-E 2',
-                type='custom',
-                content_cls=self.api_key_input,
-                buttons=[
-                    MDFlatButton(
-                        text='CANCEL',
-                        on_release=lambda x: self.api_key_dialog.dismiss()
-                    ),
-                    MDRaisedButton(
-                        text='SAVE',
-                        on_release=self.save_api_key
-                    )
-                ]
-            )
+    def save_api_key(self):
+        """Save new API key"""
+        api_key = self.ids.api_key_input.text.strip()
         
-        # Pre-fill with existing key if available
-        existing_key = self.storage.get_api_key()
-        if existing_key:
-            self.api_key_input.text = existing_key
+        # Only save if it's not the masked version
+        if api_key and not api_key.startswith('*'):
+            self.storage.save_api_key(api_key)
+            MDApp.get_running_app().main_screen.api_service.set_api_key(api_key)
+            Snackbar(text="API Key saved successfully!").open()
+            self.ids.api_key_input.text = '*' * 20
+    
+    def show_size_menu(self):
+        """Show image size selection menu"""
+        from kivymd.uix.menu import MDDropdownMenu
         
-        self.api_key_dialog.open()
-    
-    def save_api_key(self, instance):
-        api_key = self.api_key_input.text.strip()
-        if api_key:
-            self.dalle_service.set_api_key(api_key)
-            if self.dalle_service.validate_api_key():
-                self.storage.save_api_key(api_key)
-                self.api_key_dialog.dismiss()
-                Snackbar(text='API key saved successfully').open()
-            else:
-                Snackbar(text='Invalid API key. Please check and try again.').open()
-        else:
-            Snackbar(text='Please enter an API key').open()
-    
-    def generate_image(self, instance):
-        prompt = self.prompt_input.text.strip()
-        if not prompt:
-            Snackbar(text='Please enter a prompt').open()
-            return
+        menu_items = [
+            {
+                "text": size,
+                "on_release": lambda x=size: self.set_image_size(x),
+            }
+            for size in self.size_options
+        ]
         
-        if not self.dalle_service.api_key:
-            Snackbar(text='Please set your API key first').open()
-            self.show_api_key_dialog(None)
-            return
-        
-        # Disable UI during generation
-        self.generate_button.disabled = True
-        self.save_button.disabled = True
-        self.loading_spinner.active = True
-        self.image_display.opacity = 0.3
-        
-        # Generate in background thread
-        threading.Thread(target=self._generate_image_thread, args=(prompt,)).start()
+        self.menu = MDDropdownMenu(
+            caller=self.ids.size_dropdown,
+            items=menu_items,
+            width_mult=4,
+        )
+        self.menu.open()
     
-    def _generate_image_thread(self, prompt):
-        try:
-            pil_image, image_url = self.dalle_service.generate_image(prompt)
-            self.current_image = pil_image
-            
-            # Convert PIL image to Kivy texture
-            buf = BytesIO()
-            pil_image.save(buf, format='PNG')
-            buf.seek(0)
-            
-            Clock.schedule_once(lambda dt: self._update_image_display(buf.getvalue()))
-            
-        except DalleAPIError as e:
-            Clock.schedule_once(lambda dt: self._show_error(str(e)))
-        except Exception as e:
-            Clock.schedule_once(lambda dt: self._show_error(f'Unexpected error: {str(e)}'))
+    def set_image_size(self, size):
+        """Set selected image size"""
+        self.current_size = size
+        self.ids.size_dropdown.text = size
+        self.menu.dismiss()
+        Snackbar(text=f"Default size set to {size}").open()
     
-    def _update_image_display(self, image_data):
-        # Create texture from image data
-        try:
-            from kivy.core.image import Image as CoreImage
-            img = CoreImage(BytesIO(image_data), ext='png')
-            self.image_display.texture = img.texture
-            self.image_display.opacity = 1
-            
-            # Enable save button
-            self.save_button.disabled = False
-            
-            Snackbar(text='Image generated successfully!').open()
-        except Exception as e:
-            self._show_error(f'Error displaying image: {str(e)}')
-        finally:
-            # Re-enable UI
-            self.generate_button.disabled = False
-            self.loading_spinner.active = False
+    def get_image_size(self):
+        """Get current image size setting"""
+        return self.current_size
     
-    def _show_error(self, error_message):
-        Snackbar(text=error_message, duration=5).open()
-        self.generate_button.disabled = False
-        self.loading_spinner.active = False
-        self.image_display.opacity = 1
-    
-    def save_image(self, instance):
-        if not self.current_image:
-            Snackbar(text='No image to save').open()
-            return
-        
-        try:
-            filepath = save_image_to_gallery(self.current_image)
-            Snackbar(text=f'Image saved to gallery!').open()
-        except Exception as e:
-            Snackbar(text=f'Error saving image: {str(e)}').open()
+    def is_auto_save_enabled(self):
+        """Check if auto-save is enabled"""
+        return self.ids.auto_save_switch.active

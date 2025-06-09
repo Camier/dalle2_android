@@ -1,0 +1,31 @@
+# DALL-E Android App - Installation Guide
+
+## ✅ BUILD SUCCESSFUL!
+
+Your APK has been built successfully:
+- **File**: bin/dallesimple-debug.apk
+- **Size**: 56 MB
+- **Type**: Debug APK (for testing)
+
+## 📱 Installation Methods
+
+### Method 1: Using ADB
+1. Enable USB Debugging on your Android device
+2. Connect device via USB
+3. Run: adb install bin/dallesimple-debug.apk
+
+### Method 2: Manual Installation
+1. Copy APK to your Android device
+2. Enable "Install from Unknown Sources"
+3. Open the APK file to install
+
+### Method 3: Access from Windows
+The APK is located at:
+\\wsl.localhost\Ubuntu-22.04\home\mik\dalle_android\bin\dallesimple-debug.apk
+
+## 🚀 Next Steps
+1. Install and test the app
+2. Enter your OpenAI API key
+3. Generate images with DALL-E!
+
+For future builds, run: ./working_build_script.sh
