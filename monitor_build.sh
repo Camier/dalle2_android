@@ -1,43 +1,40 @@
-#!/bin/bash
+#\!/bin/bash
+
+echo "=== Monitoring Build Progress ==="
+echo "Build started at: $(date)"
+echo ""
+
 while true; do
-    clear
-    echo "=== DALL-E Android Build Monitor ==="
-    echo "Time: Mon Jun  9 09:12:17 CEST 2025"
-    echo ""
-    
-    # Check if buildozer is running
-    if pgrep -f buildozer > /dev/null; then
-        echo "✅ Build Status: RUNNING"
-        
-        # Show what's being compiled
+    # Check if buildozer is still running
+    if \! pgrep -f "buildozer android debug" > /dev/null; then
         echo ""
-        echo "Current Activity:"
-        ps aux | grep -E "(gcc|clang|python|gradlew)" | grep -v grep | tail -3
+        echo "Build process completed at: $(date)"
         
-        # Check for APK
-        echo ""
-        echo "APK Status:"
-        if [ -f bin/*.apk ]; then
-            echo "✅ APK FOUND: "
+        # Check if APK was created
+        if [ -f "bin/dalleaiart-1.0.0-debug.apk" ]; then
+            echo "SUCCESS: APK created successfully\!"
+            ls -lh bin/*.apk
         else
-            echo "⏳ APK not yet created"
+            echo "Build completed but no APK found in bin/"
+            echo "Checking for errors in log..."
+            tail -n 50 build_complete.log  < /dev/null |  grep -E "(ERROR|error|Failed|failed)"
         fi
-    else
-        echo "❌ Build Status: NOT RUNNING"
-        
-        # Check if APK exists
-        if [ -f bin/*.apk ]; then
-            echo ""
-            echo "✅ BUILD COMPLETE!"
-            echo "APK Location: "
-            break
-        else
-            echo ""
-            echo "⚠️ Build may have failed. Check logs."
-            break
-        fi
+        break
     fi
     
-    sleep 5
+    # Show current stage
+    echo -n "."
+    
+    # Check for specific build stages
+    if tail -n 5 build_complete.log | grep -q "Building"; then
+        echo -n " [Building]"
+    elif tail -n 5 build_complete.log | grep -q "Downloading"; then
+        echo -n " [Downloading]"
+    elif tail -n 5 build_complete.log | grep -q "Compiling"; then
+        echo -n " [Compiling]"
+    elif tail -n 5 build_complete.log | grep -q "Packaging"; then
+        echo -n " [Packaging]"
+    fi
+    
+    sleep 10
 done
-EOF && chmod +x /home/mik/dalle_android/monitor_build.sh

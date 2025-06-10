@@ -66,3 +66,5 @@ gradle*.log
 
 # Gradle
 .gradle/
+*.keystore
+*.jks

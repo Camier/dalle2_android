@@ -1,0 +1,35 @@
+{
+  "build_date": "2025-06-10",
+  "version": "1.0.0",
+  "security_score": 9,
+  "features": {
+    "security": [
+      "ProGuard obfuscation",
+      "Certificate pinning",
+      "Encrypted API keys",
+      "Anti-tampering",
+      "Secure logging"
+    ],
+    "performance": [
+      "LRU image cache",
+      "Request queue",
+      "Offline mode",
+      "Style presets"
+    ],
+    "accessibility": [
+      "Screen reader support",
+      "High contrast mode",
+      "Voice commands"
+    ]
+  },
+  "dependencies": {
+    "kivy": "2.3.0",
+    "cryptography": "latest",
+    "pycryptodome": "latest"
+  },
+  "signing": {
+    "keystore": "dalle-ai-art-release.keystore",
+    "algorithm": "SHA256withRSA",
+    "key_size": 4096
+  }
+}

@@ -12,7 +12,7 @@ from pathlib import Path
 import os
 
 from utils.image_utils import ImageProcessor
-from utils.image_viewer import ImageViewer
+from utils.image_viewer_dalle import ImageViewerDALLE
 from utils.dialogs import ConfirmDialog
 
 # Load KV file
@@ -68,8 +68,8 @@ class GalleryScreen(Screen):
         self.ids.gallery_grid.add_widget(card)
     
     def _view_full_image(self, image_path):
-        """View full size image"""
-        viewer = ImageViewer(image_path, on_delete_callback=self.refresh_gallery)
+        """View full size image with DALL-E AI features"""
+        viewer = ImageViewerDALLE(image_path, on_delete_callback=self.refresh_gallery)
         viewer.open()
     
     def clear_gallery(self):

@@ -1,0 +1,115 @@
+PRIVACY POLICY FOR DALL-E AI ART GENERATOR
+
+Last Updated: January 2025
+Version: 1.0.0
+
+1. INTRODUCTION
+
+Welcome to DALL-E AI Art Generator ("we," "our," or "the App"). We are committed to protecting your privacy and ensuring you have a positive experience using our application. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.
+
+2. INFORMATION WE COLLECT
+
+2.1 Information You Provide
+- API Keys: Your OpenAI API key (stored securely and encrypted)
+- User Preferences: App settings and customization choices
+- Generated Content: Images you create and their prompts
+- Age Information: Birth date for age verification (not stored after verification)
+
+2.2 Automatically Collected Information
+- Device Information: Device type, operating system version
+- App Usage Data: Features used, generation frequency (only if analytics consent given)
+- Crash Reports: Technical information about app crashes (only if consent given)
+
+3. HOW WE USE YOUR INFORMATION
+
+We use the collected information to:
+- Provide core app functionality (image generation)
+- Store your preferences and settings
+- Improve app performance and fix bugs
+- Ensure age-appropriate access
+- Comply with legal obligations
+
+4. DATA STORAGE AND SECURITY
+
+- All sensitive data (API keys) are encrypted using industry-standard encryption
+- Data is stored locally on your device
+- No data is transmitted to our servers
+- API communications go directly to OpenAI's servers
+
+5. YOUR RIGHTS AND CHOICES
+
+5.1 Consent Management
+You can manage your privacy preferences at any time:
+- Essential Services: Required for app functionality
+- Analytics & Performance: Optional, helps improve the app
+- Crash Reports: Optional, helps identify and fix issues
+- Personalization: Optional, enhances your experience
+
+5.2 Data Rights (GDPR Compliance)
+You have the right to:
+- Access: Export all your data
+- Rectification: Correct inaccurate data
+- Erasure: Delete all your data ("right to be forgotten")
+- Portability: Receive your data in a portable format
+- Object: Opt-out of optional data processing
+
+5.3 Age Restrictions
+- Minimum age: 13 years (16 in EU countries)
+- Age verification required before first use
+- Parental consent may be required in some jurisdictions
+
+6. DATA RETENTION
+
+- Active data: Retained while you use the app
+- Default retention: 365 days after last use
+- You can request immediate deletion at any time
+- Audit logs: Anonymized and retained for legal compliance
+
+7. THIRD-PARTY SERVICES
+
+This app uses OpenAI's DALL-E API:
+- Your prompts and generated images are processed by OpenAI
+- OpenAI's privacy policy applies to their services
+- We do not share your data with any other third parties
+
+8. CHILDREN'S PRIVACY
+
+- We do not knowingly collect data from children under 13 (16 in EU)
+- Age verification is required
+- If we discover underage usage, associated data will be deleted
+
+9. DATA BREACH NOTIFICATION
+
+In the unlikely event of a data breach:
+- We will notify affected users within 72 hours
+- We will provide information about the breach and remedial actions
+- We will cooperate with relevant authorities
+
+10. CHANGES TO THIS POLICY
+
+- We may update this policy periodically
+- You will be notified of significant changes
+- Continued use after changes constitutes acceptance
+
+11. CONTACT INFORMATION
+
+For privacy-related questions or to exercise your rights:
+- In-app: Settings > Privacy > Contact Support
+- Email: [privacy@dalleartapp.example]
+
+12. JURISDICTION
+
+This policy is governed by:
+- GDPR (for EU users)
+- CCPA (for California users)
+- COPPA (for users under 13)
+- Applicable local privacy laws
+
+13. TRANSPARENCY REPORT
+
+We commit to publishing annual transparency reports including:
+- Number of data requests received
+- Number of data deletions processed
+- Security incidents (anonymized)
+
+By using this app, you acknowledge that you have read and understood this Privacy Policy.
